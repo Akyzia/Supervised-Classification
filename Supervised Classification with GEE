@@ -1,0 +1,39 @@
+Map.addLayer(Curitiba);
+
+//Selecionar a imagem para a classificação
+var filtro = L8.filterBounds(Curitiba)
+            .filterMetadata("CLOUD_COVER", "less_than", 1)
+            .median()
+            .select(['B4', 'B3', 'B2']);
+
+var trueColor432Vis = {
+  min: 0.0,
+  max: 0.2,
+};
+
+
+var bandas = ['B4','B3','B2'];
+
+Map.addLayer(filtro.clip(Curitiba), trueColor432Vis);
+
+//criar as amostras
+var amostra = vegetacao.merge(construcao).merge(agua).merge(solo).merge(pastagem);
+
+//aqui eu estou dizendo quem eu vou chamar
+var treinamento = filtro.select(bandas).sampleRegions({
+  collection:amostra,
+  properties: ['class'],
+  scale:30
+});
+
+//preciso que cada classe de amostra possua a propriedade "class" 
+//aqui eu tenho a classificação com o algoritmo escolhido, puxando a var treinamento
+var classificacao = ee.Classifier.minimumDistance('euclidean').train({
+  features: treinamento,
+  classProperty: 'class',
+  inputProperties: bandas
+});
+
+var classificacao_real = filtro.clip(Curitiba).select(bandas).classify(classificacao);
+
+Map.addLayer(classificacao_real,{min:0, max: 5, palette:['green','red','blue','orange','lightgreen']}, 'classificação');
